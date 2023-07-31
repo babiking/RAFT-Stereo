@@ -1,4 +1,3 @@
-import argparse
 import torch
 from core.raft_stereo import RAFTStereo
 
