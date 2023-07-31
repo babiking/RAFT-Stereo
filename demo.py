@@ -1,15 +1,13 @@
 import os
 import sys
-import argparse
 import glob
 import numpy as np
 import torch
 from tqdm import tqdm
 from pathlib import Path
-from core.raft_stereo import RAFTStereo
-from core.utils.utils import InputPadder
 from PIL import Image
 from matplotlib import pyplot as plt
+from armnn.runtime import run_torch_model_inference
 
 import gflags
 
@@ -57,27 +55,6 @@ def demo():
     FLAGS = gflags.FLAGS
     FLAGS(sys.argv)
 
-    model = torch.nn.DataParallel(
-        RAFTStereo(
-            hidden_dims=FLAGS.hidden_dims,
-            corr_implementation=FLAGS.corr_implementation,
-            shared_backbone=FLAGS.shared_backbone,
-            corr_levels=FLAGS.corr_levels,
-            corr_radius=FLAGS.corr_radius,
-            n_downsample=FLAGS.n_downsample,
-            context_norm=FLAGS.context_norm,
-            slow_fast_gru=FLAGS.slow_fast_gru,
-            n_gru_layers=FLAGS.n_gru_layers,
-            mixed_precision=FLAGS.mixed_precision,
-        ),
-        device_ids=[0],
-    )
-    model.load_state_dict(torch.load(FLAGS.checkpoint))
-
-    model = model.module
-    model.to(FLAGS.device)
-    model.eval()
-
     output_directory = Path(FLAGS.save_path)
     output_directory.mkdir(exist_ok=True)
 
@@ -87,23 +64,27 @@ def demo():
         print(f"Found {len(left_images)} images. Saving files to {output_directory}/")
 
         for imfile1, imfile2 in tqdm(list(zip(left_images, right_images))):
-            image1 = load_image(imfile1, FLAGS.device)
-            image2 = load_image(imfile2, FLAGS.device)
-
-            padder = InputPadder(image1.shape, divis_by=32)
-            image1, image2 = padder.pad(image1, image2)
-
-            _, flow_up = model(
-                image1, image2, iters=FLAGS.n_flow_updates, test_mode=True
+            flow_up = run_torch_model_inference(
+                pt_model_file=FLAGS.checkpoint,
+                l_img_file=imfile1,
+                r_img_file=imfile2,
+                device=FLAGS.device,
+                hidden_dims=FLAGS.hidden_dims,
+                corr_implementation=FLAGS.corr_implementation,
+                shared_backbone=FLAGS.shared_backbone,
+                corr_levels=FLAGS.corr_levels,
+                corr_radius=FLAGS.corr_radius,
+                n_downsample=FLAGS.n_downsample,
+                context_norm=FLAGS.context_norm,
+                slow_fast_gru=FLAGS.slow_fast_gru,
+                n_gru_layers=FLAGS.n_gru_layers,
+                mixed_precision=FLAGS.mixed_precision,
+                n_flow_updates=FLAGS.n_flow_updates,
+                division=32,
             )
-            flow_up = padder.unpad(flow_up).squeeze()
 
             file_stem = os.path.splitext(os.path.basename(imfile1))[0]
-            plt.imsave(
-                output_directory / f"{file_stem}.png",
-                -flow_up.cpu().numpy().squeeze(),
-                cmap="jet",
-            )
+            plt.imsave(output_directory / f"{file_stem}.png", flow_up, cmap="jet")
 
 
 if __name__ == "__main__":
