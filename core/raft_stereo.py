@@ -33,7 +33,7 @@ class RAFTStereo(nn.Module):
         self,
         hidden_dims=[128, 128, 128],
         corr_implementation="reg",
-        shared_backbone=True,
+        shared_backbone=False,
         corr_levels=4,
         corr_radius=4,
         n_downsample=2,
