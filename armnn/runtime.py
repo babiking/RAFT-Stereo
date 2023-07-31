@@ -67,7 +67,7 @@ def run_torch_model_inference(
     l_disp = padder.unpad(l_disp).squeeze()
     l_disp *= -1.0
 
-    return l_disp.cpu().numpy().squeeze()
+    return l_disp.cpu().detach().numpy().squeeze()
 
 
 def run_onnx_model_inference(onnx_model_file, l_img_file, r_img_file):
@@ -82,4 +82,4 @@ def run_onnx_model_inference(onnx_model_file, l_img_file, r_img_file):
     )
     l_disp *= -1.0
 
-    return l_disp
+    return np.squeeze(l_disp)
