@@ -45,12 +45,6 @@ gflags.DEFINE_integer("n_gru_layers", 3, "number of hidden GRU levels")
 gflags.DEFINE_boolean("mixed_precision", True, "if use mixed precision")
 
 
-def load_image(imfile, device):
-    img = np.array(Image.open(imfile)).astype(np.uint8)
-    img = torch.from_numpy(img).permute(2, 0, 1).float()
-    return img[None].to(device)
-
-
 def demo():
     FLAGS = gflags.FLAGS
     FLAGS(sys.argv)
