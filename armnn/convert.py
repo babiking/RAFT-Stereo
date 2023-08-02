@@ -1,4 +1,9 @@
+import os
 import torch
+import onnx
+import onnx_tf
+from deprecated import deprecated
+from google.protobuf.json_format import MessageToDict
 from core.raft_stereo import RAFTStereo
 
 
@@ -18,7 +23,7 @@ def convert_torch_to_onnx(
     context_norm="batch",
     slow_fast_gru=True,
     n_gru_layers=3,
-    mixed_precision=True,
+    mixed_precision=False,
     n_flow_updates=32,
 ):
     model = torch.nn.DataParallel(
@@ -59,4 +64,44 @@ def convert_torch_to_onnx(
         input_names=["left", "right", "n_flow_updates", "flow_init", "test_mode"],
         output_names=["disparity"],
         opset_version=16,
+    )
+
+
+def change_onnx_input_dtype(onnx_model_file):
+    # reference: https://stackoverflow.com/questions/56734576/find-input-shape-from-onnx-file
+    model = onnx.load(onnx_model_file)
+    for msg_in in model.graph.input:
+        dict_in = MessageToDict(msg_in)
+        """
+        onnx datatype:
+            elem_type: 1 --> float32
+            elem_type: 2 --> uint8
+            elem_type: 3 --> int8
+            elem_type: 4 --> uint16
+            elem_type: 5 --> int16
+            elem_type: 6 --> int32
+            elem_type: 7 --> int64
+            elem_type: 8 --> string
+            elem_type: 9 --> boolean
+            elem_type: 10 --> float16
+            elem_type: 11 --> float64
+            elem_type: 12 --> uint32
+            elem_type: 14 --> uint64
+            elem_type: 15 --> complex128
+            elem_type: 16 --> bfloat16
+        """
+        if msg_in.name in ["left", "right"]:
+            msg_in.type.tensor_type.elem_type = 1
+    onnx.save(model, onnx_model_file)
+
+
+@deprecated(version="v1.0", reason="onnx-tensorflow NOT support GridSampler op!")
+def convert_onnx_to_tf(onnx_model_file, tf_model_file):
+    onnx_model = onnx.load(onnx_model_file)
+    tf_rep = onnx_tf.backend.prepare(onnx_model)
+    tf_rep.export_graph(
+        os.path.join(
+            os.path.dirname(tf_model_file),
+            os.path.splitext(os.path.basename(tf_model_file))[0],
+        )
     )
