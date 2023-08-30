@@ -1,7 +1,6 @@
 import os
 import torch
 import onnx
-import onnx_tf
 from deprecated import deprecated
 from google.protobuf.json_format import MessageToDict
 from core.raft_stereo import RAFTStereo
@@ -97,6 +96,7 @@ def change_onnx_input_dtype(onnx_model_file):
 
 @deprecated(version="v1.0", reason="onnx-tensorflow NOT support GridSampler op!")
 def convert_onnx_to_tf(onnx_model_file, tf_model_file):
+    import onnx_tf
     onnx_model = onnx.load(onnx_model_file)
     tf_rep = onnx_tf.backend.prepare(onnx_model)
     tf_rep.export_graph(
