@@ -1,6 +1,4 @@
 import pytest
-
-import os
 import time
 from functools import partial
 import torch
@@ -56,6 +54,10 @@ def run_tflite_grid_sampler(input, grid, tflite_model_file):
 
 
 def run_armnn_delegate_grid_sampler(input, grid, tflite_model_file, armnn_lib_file):
+    """
+    ARMNN tutorial:
+        [1] https://github.com/ARM-software/armnn/blob/branches/armnn_23_08/delegate/DelegateQuickStartGuide.md
+    """
     armnn_delegate = tflite.load_delegate(
         library=armnn_lib_file,
         options={"backends": "CpuAcc,GpuAcc,CpuRef", "logging-severity": "info"},
