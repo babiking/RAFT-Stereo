@@ -1,5 +1,6 @@
 import pytest
 
+import os
 import time
 from functools import partial
 import torch
@@ -7,6 +8,7 @@ import torch.nn.functional as F
 import onnxruntime
 import numpy as np
 import tensorflow as tf
+import tflite_runtime.interpreter as tflite
 from tools.logger import create_color_logger
 
 
@@ -54,7 +56,33 @@ def run_tflite_grid_sampler(input, grid, tflite_model_file):
 
 
 def run_armnn_delegate_grid_sampler(input, grid, tflite_model_file, armnn_lib_file):
-    raise NotImplementedError
+    armnn_delegate = tflite.load_delegate(
+        library=armnn_lib_file,
+        options={"backends": "CpuAcc,GpuAcc,CpuRef", "logging-severity": "info"},
+    )
+
+    interpreter = tflite.Interpreter(
+        model_path=tflite_model_file, experimental_delegates=[armnn_delegate]
+    )
+    interpreter.allocate_tensors()
+
+    # Get input and output tensors
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
+
+    interpreter.set_tensor(
+        input_details[0]["index"], tf.convert_to_tensor(input, dtype=tf.float32)
+    )
+    interpreter.set_tensor(
+        input_details[1]["index"], tf.convert_to_tensor(grid, dtype=tf.float32)
+    )
+
+    interpreter.invoke()
+
+    armnn_output = interpreter.get_tensor(output_details[0]["index"])
+    # TFLite dimension: NHWC -> NCHW
+    armnn_output = np.transpose(armnn_output, [0, 3, 1, 2])
+    return armnn_output
 
 
 def main():
@@ -79,6 +107,11 @@ def main():
         "TFLITE": partial(
             run_tflite_grid_sampler,
             tflite_model_file="operator/grid_sampler/grid_sampler_models/grid_sample_reproduction.tf/grid_sample_reproduction_float32.tflite",
+        ),
+        "ARMNN": partial(
+            run_armnn_delegate_grid_sampler,
+            tflite_model_file="operator/grid_sampler/grid_sampler_models/grid_sample_reproduction.tf/grid_sample_reproduction_float32.tflite",
+            armnn_lib_file="thirdparty/armnn/libarmnnDelegate.so",
         ),
     }
 
