@@ -7,7 +7,7 @@ from core.raft_stereo import RAFTStereo
 
 
 def convert_torch_to_onnx(
-    pt_model_file,
+    torch_model_file,
     onnx_model_file,
     device="cuda",
     batch_size=1,
@@ -40,17 +40,20 @@ def convert_torch_to_onnx(
         ),
         device_ids=[0],
     )
-    model.load_state_dict(torch.load(pt_model_file))
+    model.load_state_dict(
+        torch.load(torch_model_file, map_location=torch.device(device)))
 
     model = model.module
     model.to(device)
     model.eval()
 
     # pytorch input format: NCHW
-    sample_left = torch.rand((batch_size, 3, height, width), dtype=torch.float32)
+    sample_left = torch.rand((batch_size, 3, height, width),
+                             dtype=torch.float32)
     sample_left = sample_left.to(device)
 
-    sample_right = torch.rand((batch_size, 3, height, width), dtype=torch.float32)
+    sample_right = torch.rand((batch_size, 3, height, width),
+                              dtype=torch.float32)
     sample_right = sample_right.to(device)
 
     sample_n_flow_updates = torch.tensor(n_flow_updates, dtype=torch.int)
@@ -60,7 +63,9 @@ def convert_torch_to_onnx(
         (sample_left, sample_right, sample_n_flow_updates, None, True),
         onnx_model_file,
         verbose=False,
-        input_names=["left", "right", "n_flow_updates", "flow_init", "test_mode"],
+        input_names=[
+            "left", "right", "n_flow_updates", "flow_init", "test_mode"
+        ],
         output_names=["disparity"],
         opset_version=16,
     )
@@ -94,7 +99,8 @@ def change_onnx_input_dtype(onnx_model_file):
     onnx.save(model, onnx_model_file)
 
 
-@deprecated(version="v1.0", reason="onnx-tensorflow NOT support GridSampler op!")
+@deprecated(version="v1.0",
+            reason="onnx-tensorflow NOT support GridSampler op!")
 def convert_onnx_to_tf(onnx_model_file, tf_model_file):
     import onnx_tf
     onnx_model = onnx.load(onnx_model_file)
@@ -103,5 +109,4 @@ def convert_onnx_to_tf(onnx_model_file, tf_model_file):
         os.path.join(
             os.path.dirname(tf_model_file),
             os.path.splitext(os.path.basename(tf_model_file))[0],
-        )
-    )
+        ))
