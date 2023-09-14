@@ -98,7 +98,9 @@ def test_onnx2tf_consistency():
                    cmap="jet")
         l_disp_err = np.mean(np.abs(l_disp_torch - l_disp_onnx))
         assert l_disp_err < 0.05, f"{data_idx} stereo image pytorch and [onnx] mismatch!"
-        logger.info(f"{data_idx} onnx inference completed.")
+        logger.info(
+            f"{data_idx} onnx inference completed with average disparity error {l_disp_err:.4f}."
+        )
 
         l_disp_tflite = \
             run_tflite_model_inference(l_img, r_img, tflite_model_file)
@@ -107,7 +109,9 @@ def test_onnx2tf_consistency():
                    cmap="jet")
         l_disp_err = np.mean(np.abs(l_disp_torch - l_disp_tflite))
         assert l_disp_err < 0.5, f"{data_idx} stereo image pytorch and [tflite] mismatch!"
-        logger.info(f"{data_idx} tflite inference completed.")
+        logger.info(
+            f"{data_idx} tflite inference completed with average disparity error {l_disp_err:.4f}."
+        )
 
 
 if __name__ == "__main__":
