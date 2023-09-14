@@ -66,6 +66,8 @@ def test_onnx2tf_consistency():
     debug_path = os.path.join(work_path, "armnn/test/debug")
     os.makedirs(debug_path, exist_ok=True)
 
+    kwargs.pop("width")
+    kwargs.pop("height")
     data_idxes = [
         os.path.splitext(os.path.basename(x))[0].split("_")[-1]
         for x in glob.glob(

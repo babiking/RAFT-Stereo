@@ -18,7 +18,7 @@ def read_image_file(img_file):
 
     img = img[np.newaxis, :, :, :]
 
-    # torch feature map dimension format: NCHW    
+    # torch feature map dimension format: NCHW
     img = np.transpose(img, [0, 3, 1, 2])
     return img
 
@@ -41,8 +41,8 @@ def run_torch_model_inference(
     n_flow_updates=32,
     division=32,
 ):
-    torch_l_img = torch.tensor(l_img, dtype=torch.float32).to(device)
-    torch_r_img = torch.tensor(r_img, dtype=torch.float32).to(device)
+    torch_l_img = torch.tensor(l_img.copy(), dtype=torch.float32).to(device)
+    torch_r_img = torch.tensor(r_img.copy(), dtype=torch.float32).to(device)
 
     padder = InputPadder(torch_l_img.shape, divis_by=division)
     torch_l_img, torch_r_img = padder.pad(torch_l_img, torch_r_img)
@@ -62,13 +62,17 @@ def run_torch_model_inference(
         ),
         device_ids=[0],
     )
-    model.load_state_dict(torch.load(torch_model_file))
+    model.load_state_dict(
+        torch.load(torch_model_file, map_location=torch.device(device)))
 
     model = model.module
     model.to(device)
     model.eval()
 
-    _, torch_l_disp = model(torch_l_img, torch_r_img, iters=n_flow_updates, test_mode=True)
+    _, torch_l_disp = model(torch_l_img,
+                            torch_r_img,
+                            iters=n_flow_updates,
+                            test_mode=True)
     torch_l_disp = padder.unpad(torch_l_disp).squeeze()
     torch_l_disp *= -1.0
     return torch_l_disp.cpu().detach().numpy().squeeze()
@@ -79,7 +83,10 @@ def run_onnx_model_inference(l_img, r_img, onnx_model_file):
 
     _, onnx_l_disp = session.run(
         None,
-        {"left": l_img, "right": r_img},
+        {
+            "left": l_img.astype(np.float32),
+            "right": r_img.astype(np.float32)
+        },
     )
     onnx_l_disp *= -1.0
     return np.squeeze(onnx_l_disp)
@@ -98,11 +105,11 @@ def run_tflite_model_inference(l_img, r_img, tflite_model_file):
     output_details = interpreter.get_output_details()
 
     interpreter.set_tensor(
-        input_details[0]["index"], tf.convert_to_tensor(tflite_l_img, dtype=tf.float32)
-    )
+        input_details[0]["index"],
+        tf.convert_to_tensor(tflite_l_img, dtype=tf.float32))
     interpreter.set_tensor(
-        input_details[1]["index"], tf.convert_to_tensor(tflite_r_img, dtype=tf.float32)
-    )
+        input_details[1]["index"],
+        tf.convert_to_tensor(tflite_r_img, dtype=tf.float32))
 
     interpreter.invoke()
 
