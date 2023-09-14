@@ -237,9 +237,9 @@ def train(args):
                 should_keep_training = False
                 break
 
-            if total_steps % 2000 == 0:
-                save_path = Path('checkpoints/%d_epoch_%s.pth.gz' %
-                                 (total_steps + 1, args.name))
+            if total_steps % 5000 == 0:
+                save_path = Path(\
+                    'checkpoints/%d_epoch_%s.pth.gz' % (total_steps, args.name))
                 logging.info(f"Saving file {save_path}")
                 torch.save(model.state_dict(), save_path)
 
