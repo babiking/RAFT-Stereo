@@ -3,6 +3,7 @@ import cv2 as cv
 import numpy as np
 import onnxruntime
 import tensorflow as tf
+import tflite_runtime.interpreter as tflite
 from core.raft_stereo import RAFTStereo
 from core.utils.utils import InputPadder
 
@@ -116,3 +117,41 @@ def run_tflite_model_inference(l_img, r_img, tflite_model_file):
     tflite_l_disp = interpreter.get_tensor(output_details[1]["index"])
     tflite_l_disp *= -1.0
     return tflite_l_disp
+
+
+def run_armnn_delegate_model_inference(
+    l_img,
+    r_img,
+    armnn_delegate_file,
+    tflite_model_file,
+):
+    armnn_delegate = tflite.load_delegate(library=armnn_delegate_file,
+                                          options={
+                                              "backends":
+                                              "CpuAcc,GpuAcc,CpuRef",
+                                              "logging-severity": "info"
+                                          })
+
+    # Delegates/Executes all operations supported by Arm NN to/with Arm NN
+    interpreter = tflite.Interpreter(model_path=tflite_model_file,
+                                     experimental_delegates=[armnn_delegate])
+    interpreter.allocate_tensors()
+
+    # Get input and output tensors.
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
+
+    # Test model on random input data.
+    armnn_l_img = np.transpose(l_img, [0, 2, 3, 1])
+    armnn_r_img = np.transpose(r_img, [0, 2, 3, 1])
+
+    interpreter.set_tensor(input_details[0]["index"],
+                           armnn_l_img.astype(np.float32))
+    interpreter.set_tensor(input_details[1]["index"],
+                           armnn_r_img.astype(np.float32))
+
+    interpreter.invoke()
+
+    armnn_l_disp = interpreter.get_tensor(output_details[1]["index"])
+    armnn_l_disp *= -1.0
+    return armnn_l_disp
