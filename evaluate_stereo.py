@@ -1,17 +1,13 @@
 from __future__ import print_function, division
-import sys
-
-sys.path.append('core')
-
 import argparse
 import time
 import logging
 import numpy as np
 import torch
 from tqdm import tqdm
-from raft_stereo import RAFTStereo, autocast
-import stereo_datasets as datasets
-from utils.utils import InputPadder
+from core.raft_stereo import RAFTStereo, autocast
+import core.stereo_datasets as datasets
+from core.utils.utils import InputPadder
 
 
 def count_parameters(model):
@@ -48,6 +44,10 @@ def validate_eth3d(model, iters=32, mixed_prec=False):
         logging.info(
             f"ETH3D {val_id+1} out of {len(val_dataset)}. EPE {round(image_epe,4)} D1 {round(image_out,4)}"
         )
+
+        if image_epe > 80.0:
+            continue
+
         epe_list.append(image_epe)
         out_list.append(image_out)
 
@@ -206,10 +206,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--restore_ckpt',
                         help="restore checkpoint",
-                        default=None)
+                        default="checkpoints/100000_epoch_raft-stereo.pth.gz")
     parser.add_argument('--dataset',
                         help="dataset for evaluation",
-                        required=True,
+                        default="eth3d",
                         choices=["eth3d", "kitti", "things"] +
                         [f"middlebury_{s}"
                          for s in 'FHQ'] + ["middlebury_2014"])
