@@ -7,3 +7,9 @@ __pycache__
 .vscode
 
 thirdparty
+
+datasets
+
+runs
+
+checkpoints
