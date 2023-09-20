@@ -6,6 +6,7 @@ import json
 import logging
 import numpy as np
 from tqdm import tqdm
+from thop import profile
 
 from torch.utils.tensorboard import SummaryWriter
 import torch
@@ -109,12 +110,14 @@ class Logger:
 
     SUM_FREQ = 100
 
-    def __init__(self, model, scheduler):
+    def __init__(self, model, scheduler, log_dir=None):
         self.model = model
         self.scheduler = scheduler
         self.total_steps = 0
         self.running_loss = {}
-        self.writer = SummaryWriter(log_dir="runs")
+        self.log_dir = log_dir
+        self.writer = SummaryWriter(
+            log_dir="runs" if self.log_dir is None else self.log_dir)
 
     def _print_training_status(self):
         metrics_data = [
@@ -132,7 +135,8 @@ class Logger:
         )
 
         if self.writer is None:
-            self.writer = SummaryWriter(log_dir="runs")
+            self.writer = SummaryWriter(
+                log_dir="runs" if self.log_dir is None else self.log_dir)
 
         for k in self.running_loss:
             self.writer.add_scalar(k, self.running_loss[k] / Logger.SUM_FREQ,
@@ -154,7 +158,8 @@ class Logger:
 
     def write_dict(self, results):
         if self.writer is None:
-            self.writer = SummaryWriter(log_dir="runs")
+            self.writer = SummaryWriter(
+                log_dir="runs" if self.log_dir is None else self.log_dir)
 
         for key in results:
             self.writer.add_scalar(key, results[key], self.total_steps)
@@ -177,12 +182,14 @@ def train(exp_config):
             n_gru_layers=exp_config["model"]["num_of_gru_layers"],
             mixed_precision=exp_config["model"]["mixed_precision"],
         ))
-    logging.info(f"Model parameter count: {count_parameters(model)}.")
+    logging.info(f"Model parameter count (pytorch): {count_parameters(model)}.")
 
     train_loader = datasets.fetch_dataloader(exp_config)
     optimizer, scheduler = fetch_optimizer(exp_config, model)
     total_steps = 0
-    logger = Logger(model, scheduler)
+    logger = Logger(model,
+                    scheduler,
+                    log_dir=os.path.join(exp_config["path"], "runs"))
 
     restore_ckpt = exp_config["train"]["restore_checkpoint"]
     if restore_ckpt is not None and len(restore_ckpt) > 0:

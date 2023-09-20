@@ -6,9 +6,11 @@
         "restore_checkpoint": "",
         "save_checkpoint_frequency": 5000,
         "datasets": [
-            "middlebury_2014"
+            "middlebury_2014",
+            "eth3d",
+            "middlebury_Q"
         ],
-        "learn_rate": 0.00002,
+        "learn_rate": 0.0002,
         "num_of_steps": 100000,
         "train_num_of_updates": 16,
         "validate_num_of_updates": 32,
@@ -32,8 +34,8 @@
     },
     "data": {
         "image_size": [
-            384,
-            1000
+            480,
+            640
         ],
         "image_gamma": [],
         "spatial_scale": [
