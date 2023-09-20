@@ -174,18 +174,26 @@ class BasicEncoder(nn.Module):
 
         # if input is list, combine batch dimension
         is_list = isinstance(x, tuple) or isinstance(x, list)
+        
+        # x = [image1, image2]
+        # x: 2 x 3 x 480 x 640
         if is_list:
             batch_dim = x[0].shape[0]
             x = torch.cat(x, dim=0)
 
+        # conv1: dim = 64, stride = 1, 2 x 64 x 480 x 640
         x = self.conv1(x)
         x = self.norm1(x)
         x = self.relu1(x)
 
+        # layer1: dim = 64, stride = 1, 2 x 64 x 480 x 640
         x = self.layer1(x)
+        # layer2: dim = 96, stride = 2, 2 x 96 x 240 x 320
         x = self.layer2(x)
+        # layer3: dim = 128, stride = 2, 2 x 128 x 120 x 160
         x = self.layer3(x)
 
+        # conv2: dim = 128, 2 x 128 x 120 x 160
         x = self.conv2(x)
 
         if self.training and self.dropout is not None:
@@ -193,7 +201,10 @@ class BasicEncoder(nn.Module):
 
         if is_list:
             x = x.split(split_size=batch_dim, dim=0)
-
+        
+        # output:
+        #   [1] image1: 1 x 128 x 120 x 160
+        #   [2] image2: 1 x 128 x 120 x 160
         return x
 
 class MultiBasicEncoder(nn.Module):
@@ -272,29 +283,44 @@ class MultiBasicEncoder(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x, dual_inp=False, num_layers=3):
-
+        # input: 1 x 3 x 480 x 640
+        # conv1: 1 x 64 x 480 x 640
         x = self.conv1(x)
         x = self.norm1(x)
         x = self.relu1(x)
 
+        # layer1: dim = 64, stride = 1, 1 x 64 x 480 x 640
         x = self.layer1(x)
+        # layer2: dim = 96, stride = 2, 1 x 96 x 240 x 320
         x = self.layer2(x)
+        # layer3: dim = 128, stride = 2, 1 x 128 x 120 x 160 
         x = self.layer3(x)
         if dual_inp:
             v = x
             x = x[:(x.shape[0]//2)]
 
+        # outputs08:
+        #   [1] hidden_dims:  1 x 128 x 120 x 160
+        #   [2] context_dims: 1 x 128 x 120 x 160
         outputs08 = [f(x) for f in self.outputs08]
         if num_layers == 1:
             return (outputs08, v) if dual_inp else (outputs08,)
 
+        # layer4: dim = 128, stride = 2, 1 x 128 x 60 x 80
         y = self.layer4(x)
+        # outputs16:
+        #   [1] hidden_dims:  1 x 128 x 60 x 80
+        #   [2] context_dims: 1 x 128 x 60 x 80
         outputs16 = [f(y) for f in self.outputs16]
 
         if num_layers == 2:
             return (outputs08, outputs16, v) if dual_inp else (outputs08, outputs16)
 
+        # layer5: dim = 128, stride = 2, 1 x 128 x 30 x 40
         z = self.layer5(y)
+        # outputs32:
+        #   [1] hidden_dims:  1 x 128 x 30 x 40
+        #   [2] context_dims: 1 x 128 x 30 x 40
         outputs32 = [f(z) for f in self.outputs32]
 
         return (outputs08, outputs16, outputs32, v) if dual_inp else (outputs08, outputs16, outputs32)

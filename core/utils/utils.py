@@ -75,8 +75,13 @@ def bilinear_sampler(img, coords, mode='bilinear', mask=False):
 
 
 def coords_grid(batch, ht, wd):
+    # meshgrid:
+    #   [1] ht: 480 x 640
+    #   [2] wt: 480 x 640 
     coords = torch.meshgrid(torch.arange(ht), torch.arange(wd))
+    # stack: 2 x 480 x 640
     coords = torch.stack(coords[::-1], dim=0).float()
+    # repeat: 1 x 2 x 480 x 640
     return coords[None].repeat(batch, 1, 1, 1)
 
 

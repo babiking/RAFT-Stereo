@@ -114,44 +114,71 @@ class CorrBlock1D:
         self.corr_pyramid = []
 
         # all pairs correlation
+        # corr: 1 x 120 x 160 x 1 x 160
         corr = CorrBlock1D.corr(fmap1, fmap2)
 
         batch, h1, w1, _, w2 = corr.shape
+        # corr: 19200 x 1 x 1 x 160
         corr = corr.reshape(batch*h1*w1, 1, 1, w2)
 
+        # corr_pyramid:
+        #   [0] 19200 x 1 x 1 x 160
+        #   [1] 19200 x 1 x 1 x 80
+        #   [2] 19200 x 1 x 1 x 40
+        #   [3] 19200 x 1 x 1 x 20
+        #   [4] 19200 x 1 x 1 x 10
         self.corr_pyramid.append(corr)
         for i in range(self.num_levels):
             corr = F.avg_pool2d(corr, [1,2], stride=[1,2])
             self.corr_pyramid.append(corr)
 
     def __call__(self, coords):
+        # coords: 1 x 2 x 120 x 160
         r = self.radius
+        # coords: 1 x 1 x 120 x 160
         coords = coords[:, :1].permute(0, 2, 3, 1)
         batch, h1, w1, _ = coords.shape
 
         out_pyramid = []
         for i in range(self.num_levels):
+            # corr: 19200 x 1 x 1 x 160
             corr = self.corr_pyramid[i]
+            # dx: 9 x 1
             dx = torch.linspace(-r, r, 2*r+1)
             dx = dx.view(2*r+1, 1).to(coords.device)
+            # x0: 19200 x 1 x 9 x 1
             x0 = dx + coords.reshape(batch*h1*w1, 1, 1, 1) / 2**i
+            # y0: 19200 x 1 x 9 x 1
             y0 = torch.zeros_like(x0)
 
+            # coords_lvl: 19200 x 1 x 9 x 2
             coords_lvl = torch.cat([x0,y0], dim=-1)
+            # corr: 19200 x 1 x 1 x 9
             corr = bilinear_sampler(corr, coords_lvl)
+            # corr: 1 x 120 x 160 x 9
             corr = corr.view(batch, h1, w1, -1)
             out_pyramid.append(corr)
 
+        # out_pyramid
+        #   [0] 1 x 120 x 160 x 9
+        #   [1] 1 x 120 x 160 x 9
+        #   [2] 1 x 120 x 160 x 9
+        #   [3] 1 x 120 x 160 x 9
         out = torch.cat(out_pyramid, dim=-1)
+        # out: 1 x 36 x 120 x 160
         return out.permute(0, 3, 1, 2).contiguous().float()
 
     @staticmethod
     def corr(fmap1, fmap2):
+        # fmap1: 1 x 128 x 120 x 160
+        # fmap2: 1 x 128 x 120 x 160
         B, D, H, W1 = fmap1.shape
         _, _, _, W2 = fmap2.shape
         fmap1 = fmap1.view(B, D, H, W1)
         fmap2 = fmap2.view(B, D, H, W2)
+        # einsum: 1 x 120 x 160 x 160
         corr = torch.einsum('aijk,aijh->ajkh', fmap1, fmap2)
+        # reshape: 1 x 120 x 160 x 1 x 160
         corr = corr.reshape(B, H, W1, 1, W2).contiguous()
         return corr / torch.sqrt(torch.tensor(D).float())
 

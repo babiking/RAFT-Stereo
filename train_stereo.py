@@ -175,7 +175,8 @@ def train(args):
     logger = Logger(model, scheduler)
 
     if args.restore_ckpt is not None:
-        assert args.restore_ckpt.endswith(".pth")
+        assert \
+            args.restore_ckpt.endswith(".pth") or args.restore_ckpt.endswith(".pth.gz")
         logging.info("Loading checkpoint...")
         checkpoint = torch.load(args.restore_ckpt)
         model.load_state_dict(checkpoint, strict=True)
@@ -218,18 +219,18 @@ def train(args):
 
             logger.push(metrics)
 
-            if total_steps % validation_frequency == validation_frequency - 1:
-                save_path = Path('checkpoints/%d_%s.pth' %
-                                 (total_steps + 1, args.name))
-                logging.info(f"Saving file {save_path.absolute()}")
-                torch.save(model.state_dict(), save_path)
+            # if total_steps % validation_frequency == validation_frequency - 1:
+            #     save_path = Path('checkpoints/%d_%s.pth' %
+            #                      (total_steps + 1, args.name))
+            #     logging.info(f"Saving file {save_path.absolute()}")
+            #     torch.save(model.state_dict(), save_path)
 
-                results = validate_things(model.module, iters=args.valid_iters)
+            #     results = validate_things(model.module, iters=args.valid_iters)
 
-                logger.write_dict(results)
+            #     logger.write_dict(results)
 
-                model.train()
-                model.module.freeze_bn()
+            #     model.train()
+            #     model.module.freeze_bn()
 
             total_steps += 1
 
@@ -256,7 +257,9 @@ if __name__ == '__main__':
     parser.add_argument('--name',
                         default='raft-stereo',
                         help="name your experiment")
-    parser.add_argument('--restore_ckpt', help="restore checkpoint")
+    parser.add_argument('--restore_ckpt',
+                        help="restore checkpoint",
+                        default="models/raftstereo-middlebury.pth")
     parser.add_argument('--mixed_precision',
                         action='store_true',
                         help='use mixed precision')
@@ -264,11 +267,11 @@ if __name__ == '__main__':
     # Training parameters
     parser.add_argument('--batch_size',
                         type=int,
-                        default=6,
+                        default=1,
                         help="batch size used during training.")
     parser.add_argument('--train_datasets',
                         nargs='+',
-                        default=['sceneflow'],
+                        default=['middlebury_2014'],
                         help="training datasets.")
     parser.add_argument('--lr',
                         type=float,
@@ -282,7 +285,7 @@ if __name__ == '__main__':
         '--image_size',
         type=int,
         nargs='+',
-        default=[320, 720],
+        default=[480, 640],
         help="size of the random image crops used during training.")
     parser.add_argument(
         '--train_iters',

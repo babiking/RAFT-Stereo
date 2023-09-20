@@ -29,13 +29,19 @@ class ConvGRU(nn.Module):
         )
 
     def forward(self, h, cz, cr, cq, *x_list):
+        # x: 1 x 128 x 30 x 40
         x = torch.cat(x_list, dim=1)
+        # hx: 1 x 256 x 30 x 40
         hx = torch.cat([h, x], dim=1)
 
+        # z: 1 x 128 x 30 x 40
         z = torch.sigmoid(self.convz(hx) + cz)
+        # r: 1 x 128 x 30 x 40
         r = torch.sigmoid(self.convr(hx) + cr)
+        # q: 1 x 128 x 30 x 40
         q = torch.tanh(self.convq(torch.cat([r * h, x], dim=1)) + cq)
 
+        # h: 1 x 128 x 30 x 40
         h = (1 - z) * h + z * q
         return h
 
@@ -88,7 +94,7 @@ class BasicMotionEncoder(nn.Module):
         self.corr_levels = corr_levels
         self.corr_radius = corr_radius
 
-        cor_planes = self.corr_levels * (2 * self.corr_radius + 1)
+        cor_planes = self.corr_levels * (2 * self.corr_radius + 1) # cor_planes = 36
 
         self.convc1 = nn.Conv2d(cor_planes, 64, 1, padding=0)
         self.convc2 = nn.Conv2d(64, 64, 3, padding=1)
@@ -97,13 +103,20 @@ class BasicMotionEncoder(nn.Module):
         self.conv = nn.Conv2d(64 + 64, 128 - 2, 3, padding=1)
 
     def forward(self, flow, corr):
+        # cor: 1 x 64 x 120 x 160
         cor = F.relu(self.convc1(corr))
+        # cor: 1 x 64 x 120 x 160
         cor = F.relu(self.convc2(cor))
+        # flo: 1 x 64 x 120 x 160
         flo = F.relu(self.convf1(flow))
+        # flo: 1 x 64 x 120 x 160
         flo = F.relu(self.convf2(flo))
 
+        # cor_flo: 1 x 128 x 120 x 160
         cor_flo = torch.cat([cor, flo], dim=1)
+        # out: 1 x 126 x 120 x 160
         out = F.relu(self.conv(cor_flo))
+        # out: 1 x 128 x 120 x 160
         return torch.cat([out, flow], dim=1)
 
 
@@ -136,13 +149,17 @@ class BasicMultiUpdateBlock(nn.Module):
         encoder_output_dim = 128
 
         self.gru08 = ConvGRU(
-            hidden_dims[2],
-            encoder_output_dim + hidden_dims[1] * (self.n_gru_layers > 1),
+            hidden_dims[2], # hidden_dim = 128
+            encoder_output_dim + hidden_dims[1] * (self.n_gru_layers > 1), # input_dim = 256
         )
         self.gru16 = ConvGRU(
-            hidden_dims[1], hidden_dims[0] * (self.n_gru_layers == 3) + hidden_dims[2]
+            hidden_dims[1], # hidden_dim = 128 
+            hidden_dims[0] * (self.n_gru_layers == 3) + hidden_dims[2], # input_dim = 256
         )
-        self.gru32 = ConvGRU(hidden_dims[0], hidden_dims[1])
+        self.gru32 = ConvGRU(
+            hidden_dims[0], # hidden_dim = 128 
+            hidden_dims[1], # input_dim = 128
+        )
         self.flow_head = FlowHead(hidden_dims[2], hidden_dim=256, output_dim=2)
         factor = 2**self.n_downsample
 
@@ -163,18 +180,41 @@ class BasicMultiUpdateBlock(nn.Module):
         iter32=True,
         update=True,
     ):
+        # net, i.e. hidden:
+        #   [1] 1 x 128 x 120 x 160
+        #   [2] 1 x 128 x 60 x 80
+        #   [3] 1 x 128 x 30 x 40
+        # inp, i.e. context:
+        #   [1] outputs08
+        #       [1.1] 1 x 128 x 120 x 160
+        #       [1.2] 1 x 128 x 120 x 160
+        #       [1.3] 1 x 128 x 120 x 160
+        #   [2] outputs16
+        #       [2.1] 1 x 128 x 60 x 80
+        #       [2.2] 1 x 128 x 60 x 80
+        #       [2.3] 1 x 128 x 60 x 80
+        #   [3] outputs32
+        #       [3.1] 1 x 128 x 30 x 40
+        #       [3.2] 1 x 128 x 30 x 40
+        #       [3.3] 1 x 128 x 30 x 40
         if iter32:
+            # gru32: hidden_dim = 128, input_dim = 128, 1 x 128 x 30 x 40
             net[2] = self.gru32(net[2], *(inp[2]), pool2x(net[1]))
         if iter16:
             if self.n_gru_layers > 2:
+                # gru16: hidden_dim = 128, input_dim = 256, 1 x 128 x 60 x 80
                 net[1] = self.gru16(
                     net[1], *(inp[1]), pool2x(net[0]), interp(net[2], net[1])
                 )
             else:
                 net[1] = self.gru16(net[1], *(inp[1]), pool2x(net[0]))
         if iter08:
+            # corr: 1 x 36 x 120 x 160
+            # flow: 1 x 2 x 120 x 160
+            # motion_features: 1 x 128 x 120 x 160
             motion_features = self.encoder(flow, corr)
             if self.n_gru_layers > 1:
+                # gru08: hidden_dim = 128, input_dim = 256, 1 x 128 x 120 x 160
                 net[0] = self.gru08(
                     net[0], *(inp[0]), motion_features, interp(net[1], net[0])
                 )
@@ -182,10 +222,16 @@ class BasicMultiUpdateBlock(nn.Module):
                 net[0] = self.gru08(net[0], *(inp[0]), motion_features)
 
         if not update:
+            # net, i.e. hidden:
+            #   [1] 1 x 128 x 120 x 160
+            #   [2] 1 x 128 x 60 x 80
+            #   [3] 1 x 128 x 30 x 40
             return net
 
+        # delta_flow: 1 x 2 x 120 x 160
         delta_flow = self.flow_head(net[0])
 
         # scale mask to balence gradients
+        # mask: 1 x 9 * 4^(2) x 120 x 160, i.e. 1 x 144 x 120 x 160
         mask = 0.25 * self.mask(net[0])
         return net, mask, delta_flow
