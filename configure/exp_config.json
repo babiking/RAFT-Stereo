@@ -1,0 +1,49 @@
+{
+    "experiment": "BASE_SHARE",
+    "work_path": "/mnt/data/workspace/github/RAFT-Stereo",
+    "train": {
+        "batch_size": 1,
+        "restore_checkpoint": "models/raftstereo-middlebury.pth",
+        "dataset": [
+            "middlebury_2014"
+        ],
+        "learn_rate": 0.00002,
+        "num_of_steps": 100000,
+        "image_size": [
+            384,
+            1000
+        ],
+        "train_num_of_updates": 16,
+        "validate_num_of_updates": 32,
+        "weight_decay": 0.00001
+    },
+    "model": {
+        "correlation_implementation": "reg",
+        "correlation_levels": 4,
+        "correlation_radius": 4,
+        "shared_backbone": true,
+        "num_of_downsample": 2,
+        "context_norm": "batch",
+        "slow_fast_gru": false,
+        "num_of_gru_layers": 3,
+        "hidden_dims": [
+            128,
+            128,
+            128
+        ],
+        "mixed_precision": true
+    },
+    "datasets": {
+        "image_gamma": [],
+        "spatial_scale": [
+            -0.2,
+            0.4
+        ],
+        "saturation_range": [
+            0,
+            1.4
+        ],
+        "do_flip": false,
+        "no_y_jitter": false
+    }
+}
