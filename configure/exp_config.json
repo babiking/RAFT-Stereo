@@ -2,9 +2,9 @@
     "name": "BASE_SHARE",
     "path": "/mnt/data/workspace/github/RAFT-Stereo/experiments/BASE_SHARE",
     "train": {
-        "batch_size": 1,
+        "batch_size": 3,
         "restore_checkpoint": "",
-        "save_checkpoint_frequency": 5000,
+        "save_checkpoint_frequency": 10000,
         "datasets": [
             "middlebury_2014"
         ],
