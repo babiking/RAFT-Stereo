@@ -6,9 +6,7 @@
         "restore_checkpoint": "",
         "save_checkpoint_frequency": 5000,
         "datasets": [
-            "middlebury_2014",
-            "eth3d",
-            "middlebury_Q"
+            "middlebury_2014"
         ],
         "learn_rate": 0.0002,
         "num_of_steps": 100000,
