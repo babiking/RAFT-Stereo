@@ -6,7 +6,6 @@ import json
 import logging
 import numpy as np
 from tqdm import tqdm
-from thop import profile
 
 from torch.utils.tensorboard import SummaryWriter
 import torch
