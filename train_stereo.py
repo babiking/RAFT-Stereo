@@ -168,20 +168,9 @@ class Logger:
 
 
 def train(exp_config):
-    model = nn.DataParallel(
-        RAFTStereo(
-            hidden_dims=exp_config["model"]["hidden_dims"],\
-            corr_implementation=exp_config["model"]["correlation_implementation"],
-            shared_backbone=exp_config["model"]["shared_backbone"],
-            corr_levels=exp_config["model"]["correlation_levels"],
-            corr_radius=exp_config["model"]["correlation_radius"],
-            n_downsample=exp_config["model"]["num_of_downsample"],
-            context_norm=exp_config["model"]["context_norm"],
-            slow_fast_gru=exp_config["model"]["slow_fast_gru"],
-            n_gru_layers=exp_config["model"]["num_of_gru_layers"],
-            mixed_precision=exp_config["model"]["mixed_precision"],
-        ))
-    logging.info(f"Model parameter count (pytorch): {count_parameters(model)}.")
+    model = nn.DataParallel(RAFTStereo(**exp_config["model"]))
+    logging.info(
+        f"Model parameter count (pytorch): {count_parameters(model)}.")
 
     train_loader = datasets.fetch_dataloader(exp_config)
     optimizer, scheduler = fetch_optimizer(exp_config, model)

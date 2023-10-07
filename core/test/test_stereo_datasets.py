@@ -1,7 +1,6 @@
 import pytest
 
 import os
-import json
 import time
 import cv2 as cv
 from tqdm import tqdm

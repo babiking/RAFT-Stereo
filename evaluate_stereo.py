@@ -1,6 +1,7 @@
 from __future__ import print_function, division
-import argparse
+import sys
 import time
+import json
 import logging
 import numpy as np
 import torch
@@ -8,6 +9,14 @@ from tqdm import tqdm
 from core.raft_stereo import RAFTStereo, autocast
 import core.stereo_datasets as datasets
 from core.utils.utils import InputPadder
+import gflags
+
+gflags.DEFINE_string("exp_config_json", "configure/exp_config.json",
+                     "experiment configure json file")
+gflags.DEFINE_string(
+    "model_chkpt_file",
+    "models/raftstereo-middlebury.pth",
+    "model checkpont file")
 
 
 def count_parameters(model):
@@ -93,7 +102,7 @@ def validate_kitti(model, iters=32, mixed_prec=False):
         epe_flattened = epe.flatten()
         val = valid_gt.flatten() >= 0.5
 
-        out = (epe_flattened > 3.0)
+        out = (epe_flattened > 1.0)
         image_out = out[val].float().mean().item()
         image_epe = epe_flattened[val].mean().item()
         if val_id < 9 or (val_id + 1) % 10 == 0:
@@ -183,7 +192,7 @@ def validate_middlebury(model, iters=32, split='F', mixed_prec=False):
         epe_flattened = epe.flatten()
         val = (valid_gt.reshape(-1) >= -0.5) & (flow_gt[0].reshape(-1) > -1000)
 
-        out = (epe_flattened > 2.0)
+        out = (epe_flattened > 1.0)
         image_out = out[val].float().mean().item()
         image_epe = epe_flattened[val].mean().item()
         logging.info(
@@ -202,123 +211,65 @@ def validate_middlebury(model, iters=32, split='F', mixed_prec=False):
     return {f'middlebury{split}-epe': epe, f'middlebury{split}-d1': d1}
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--restore_ckpt',
-                        help="restore checkpoint",
-                        default="checkpoints/100000_epoch_raft-stereo.pth.gz")
-    parser.add_argument('--dataset',
-                        help="dataset for evaluation",
-                        default="eth3d",
-                        choices=["eth3d", "kitti", "things"] +
-                        [f"middlebury_{s}"
-                         for s in 'FHQ'] + ["middlebury_2014"])
-    parser.add_argument('--mixed_precision',
-                        action='store_true',
-                        help='use mixed precision')
-    parser.add_argument(
-        '--valid_iters',
-        type=int,
-        default=32,
-        help='number of flow-field updates during forward pass')
-
-    # Architecure choices
-    parser.add_argument('--hidden_dims',
-                        nargs='+',
-                        type=int,
-                        default=[128] * 3,
-                        help="hidden state and context dimensions")
-    parser.add_argument('--corr_implementation',
-                        choices=["reg", "alt", "reg_cuda", "alt_cuda"],
-                        default="reg",
-                        help="correlation volume implementation")
-    parser.add_argument(
-        '--shared_backbone',
-        action='store_true',
-        help="use a single backbone for the context and feature encoders")
-    parser.add_argument('--corr_levels',
-                        type=int,
-                        default=4,
-                        help="number of levels in the correlation pyramid")
-    parser.add_argument('--corr_radius',
-                        type=int,
-                        default=4,
-                        help="width of the correlation pyramid")
-    parser.add_argument('--n_downsample',
-                        type=int,
-                        default=2,
-                        help="resolution of the disparity field (1/2^K)")
-    parser.add_argument('--context_norm',
-                        type=str,
-                        default="batch",
-                        choices=['group', 'batch', 'instance', 'none'],
-                        help="normalization of context encoder")
-    parser.add_argument('--slow_fast_gru',
-                        action='store_true',
-                        help="iterate the low-res GRUs more frequently")
-    parser.add_argument('--n_gru_layers',
-                        type=int,
-                        default=3,
-                        help="number of hidden GRU levels")
-    args = parser.parse_args()
-
-    model = torch.nn.DataParallel(
-        RAFTStereo(
-            args.hidden_dims,
-            args.corr_implementation,
-            args.shared_backbone,
-            args.corr_levels,
-            args.corr_radius,
-            args.n_downsample,
-            args.context_norm,
-            args.slow_fast_gru,
-            args.n_gru_layers,
-            args.mixed_precision,
-        )).to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+def main():
+    FLAGS = gflags.FLAGS
+    FLAGS(sys.argv)
 
     logging.basicConfig(
         level=logging.INFO,
         format=
         '%(asctime)s %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s')
 
-    if args.restore_ckpt is not None:
-        assert \
-            args.restore_ckpt.endswith(".pth") or args.restore_ckpt.endswith(".pth.gz")
-        logging.info("Loading checkpoint...")
-        checkpoint = torch.load(args.restore_ckpt)
-        model.load_state_dict(checkpoint, strict=True)
-        logging.info(f"Done loading checkpoint")
+    exp_config = json.load(open(FLAGS.exp_config_json, 'r'))
+
+    model = torch.nn.DataParallel(RAFTStereo(**exp_config["model"])).to(
+        torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
     model.cuda()
     model.eval()
 
+    assert \
+        FLAGS.model_chkpt_file.endswith(".pth") or FLAGS.model_chkpt_file.endswith(".pth.gz")
+    logging.info(f"Loading checkpoint: {FLAGS.model_chkpt_file}...")
+    checkpoint = torch.load(FLAGS.model_chkpt_file)
+    model.load_state_dict(checkpoint, strict=True)
+    logging.info(f"Done loading checkpoint.")
+
     print(
-        f"The model has {format(count_parameters(model)/1e6, '.2f')}M learnable parameters."
+        f"The model has {format(count_parameters(model)/1e6, '.4f')}M learnable parameters."
     )
 
     # The CUDA implementations of the correlation volume prevent half-precision
     # rounding errors in the correlation lookup. This allows us to use mixed precision
     # in the entire forward pass, not just in the GRUs & feature extractors.
-    use_mixed_precision = args.corr_implementation.endswith("_cuda")
+    use_mixed_precision = \
+        exp_config["model"]["corr_implementation"].endswith("_cuda")
 
-    if args.dataset == 'eth3d':
-        validate_eth3d(model,
-                       iters=args.valid_iters,
-                       mixed_prec=use_mixed_precision)
+    valid_iters = exp_config["test"]["validate_num_of_updates"]
 
-    elif args.dataset == 'kitti':
-        validate_kitti(model,
-                       iters=args.valid_iters,
-                       mixed_prec=use_mixed_precision)
+    for dataset in exp_config["test"]["datasets"]:
+        if dataset == 'eth3d':
+            validate_eth3d(model,
+                           iters=valid_iters,
+                           mixed_prec=use_mixed_precision)
 
-    elif args.dataset in ([f"middlebury_{s}"
-                           for s in 'FHQ'] + ["middlebury_2014"]):
-        validate_middlebury(model,
-                            iters=args.valid_iters,
-                            split=args.dataset.split('_')[-1],
+        elif dataset == 'kitti':
+            validate_kitti(model,
+                           iters=valid_iters,
+                           mixed_prec=use_mixed_precision)
+
+        elif dataset in ([f"middlebury_{s}"
+                          for s in 'FHQ'] + ["middlebury_2014"]):
+            validate_middlebury(model,
+                                iters=valid_iters,
+                                split=dataset.split('_')[-1],
+                                mixed_prec=use_mixed_precision)
+
+        elif dataset == 'things':
+            validate_things(model,
+                            iters=valid_iters,
                             mixed_prec=use_mixed_precision)
 
-    elif args.dataset == 'things':
-        validate_things(model,
-                        iters=args.valid_iters,
-                        mixed_prec=use_mixed_precision)
+
+if __name__ == "__main__":
+    main()
