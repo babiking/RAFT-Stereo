@@ -129,17 +129,21 @@ class SceneFlowDatasets(StereoDataset):
                  aug_params=None,
                  root="/home/ec2-user/datasets/SceneFlow",
                  dstype="frames_cleanpass",
-                 things_test=False):
+                 things_test=False,
+                 subsets=["things", "monkaa", "driving"]):
         super(SceneFlowDatasets, self).__init__(aug_params)
         self.root = root
         self.dstype = dstype
+        self.subsets = subsets
 
-        if things_test:
-            self._add_things("TEST")
-        else:
-            self._add_things("TRAIN")
+        if "things" in self.subsets:
+            self._add_things("TEST" if things_test else "TRAIN")
+        
+        if "monkaa" in self.subsets:
             self._add_monkaa()
-            self._add_driving()
+        
+        if "driving" in self.subsets:
+            self._add_driving()            
 
     def _add_things(self, split="TRAIN"):
         """ Add FlyingThings3D data """
