@@ -19,12 +19,12 @@ from core.utils.augmentor import FlowAugmentor, SparseFlowAugmentor
 
 
 class StereoDataset(data.Dataset):
-
     def __init__(self, aug_params=None, sparse=False, reader=None):
         self.augmentor = None
         self.sparse = sparse
-        self.img_pad = aug_params.pop("img_pad",
-                                      None) if aug_params is not None else None
+        self.img_pad = (
+            aug_params.pop("img_pad", None) if aug_params is not None else None
+        )
         if aug_params is not None and "crop_size" in aug_params:
             if sparse:
                 self.augmentor = SparseFlowAugmentor(**aug_params)
@@ -44,7 +44,6 @@ class StereoDataset(data.Dataset):
         self.extra_info = []
 
     def __getitem__(self, index):
-
         if self.is_test:
             img1 = frame_utils.read_gen(self.image_list[index][0])
             img2 = frame_utils.read_gen(self.image_list[index][1])
@@ -88,8 +87,7 @@ class StereoDataset(data.Dataset):
 
         if self.augmentor is not None:
             if self.sparse:
-                img1, img2, flow, valid = self.augmentor(
-                    img1, img2, flow, valid)
+                img1, img2, flow, valid = self.augmentor(img1, img2, flow, valid)
             else:
                 img1, img2, flow = self.augmentor(img1, img2, flow)
 
@@ -108,8 +106,13 @@ class StereoDataset(data.Dataset):
             img2 = F.pad(img2, [padW] * 2 + [padH] * 2)
 
         flow = flow[:1]
-        return self.image_list[index] + [self.disparity_list[index]
-                                         ], img1, img2, flow, valid.float()
+        return (
+            self.image_list[index] + [self.disparity_list[index]],
+            img1,
+            img2,
+            flow,
+            valid.float(),
+        )
 
     def __mul__(self, v):
         copy_of_self = copy.deepcopy(self)
@@ -124,13 +127,14 @@ class StereoDataset(data.Dataset):
 
 
 class SceneFlowDatasets(StereoDataset):
-
-    def __init__(self,
-                 aug_params=None,
-                 root="/home/ec2-user/datasets/SceneFlow",
-                 dstype="frames_cleanpass",
-                 things_test=False,
-                 subsets=["things", "monkaa", "driving"]):
+    def __init__(
+        self,
+        aug_params=None,
+        root="/home/ec2-user/datasets/SceneFlow",
+        dstype="frames_cleanpass",
+        things_test=False,
+        subsets=["things", "monkaa", "driving"],
+    ):
         super(SceneFlowDatasets, self).__init__(aug_params)
         self.root = root
         self.dstype = dstype
@@ -138,20 +142,19 @@ class SceneFlowDatasets(StereoDataset):
 
         if "things" in self.subsets:
             self._add_things("TEST" if things_test else "TRAIN")
-        
+
         if "monkaa" in self.subsets:
             self._add_monkaa()
-        
+
         if "driving" in self.subsets:
-            self._add_driving()            
+            self._add_driving()
 
     def _add_things(self, split="TRAIN"):
-        """ Add FlyingThings3D data """
+        """Add FlyingThings3D data"""
 
         original_length = len(self.disparity_list)
         root = osp.join(self.root, "FlyingThings3D")
-        left_images = sorted(
-            glob(osp.join(root, self.dstype, split, "*/*/left/*.png")))
+        left_images = sorted(glob(osp.join(root, self.dstype, split, "*/*/left/*.png")))
         right_images = [im.replace("left", "right") for im in left_images]
         disparity_images = [
             im.replace(self.dstype, "disparity").replace(".png", ".pfm")
@@ -165,7 +168,8 @@ class SceneFlowDatasets(StereoDataset):
         np.random.set_state(state)
 
         for idx, (img1, img2, disp) in enumerate(
-                zip(left_images, right_images, disparity_images)):
+            zip(left_images, right_images, disparity_images)
+        ):
             if (split == "TEST" and idx in val_idxs) or split == "TRAIN":
                 self.image_list += [[img1, img2]]
                 self.disparity_list += [disp]
@@ -174,7 +178,7 @@ class SceneFlowDatasets(StereoDataset):
         )
 
     def _add_monkaa(self):
-        """ Add FlyingThings3D data """
+        """Add FlyingThings3D data"""
 
         original_length = len(self.disparity_list)
         root = osp.join(self.root, "Monkaa")
@@ -187,8 +191,7 @@ class SceneFlowDatasets(StereoDataset):
             for im in left_images
         ]
 
-        for img1, img2, disp in zip(left_images, right_images,
-                                    disparity_images):
+        for img1, img2, disp in zip(left_images, right_images, disparity_images):
             self.image_list += [[img1, img2]]
             self.disparity_list += [disp]
         logging.info(
@@ -196,12 +199,11 @@ class SceneFlowDatasets(StereoDataset):
         )
 
     def _add_driving(self):
-        """ Add FlyingThings3D data """
+        """Add FlyingThings3D data"""
 
         original_length = len(self.disparity_list)
         root = osp.join(self.root, "Driving")
-        left_images = sorted(
-            glob(osp.join(root, self.dstype, "*/*/*/left/*.png")))
+        left_images = sorted(glob(osp.join(root, self.dstype, "*/*/*/left/*.png")))
         right_images = [
             image_file.replace("left", "right") for image_file in left_images
         ]
@@ -210,8 +212,7 @@ class SceneFlowDatasets(StereoDataset):
             for im in left_images
         ]
 
-        for img1, img2, disp in zip(left_images, right_images,
-                                    disparity_images):
+        for img1, img2, disp in zip(left_images, right_images, disparity_images):
             self.image_list += [[img1, img2]]
             self.disparity_list += [disp]
         logging.info(
@@ -220,22 +221,19 @@ class SceneFlowDatasets(StereoDataset):
 
 
 class ETH3D(StereoDataset):
-
-    def __init__(self,
-                 aug_params=None,
-                 root="/home/ec2-user/datasets/ETH3D",
-                 split="training"):
+    def __init__(
+        self, aug_params=None, root="/home/ec2-user/datasets/ETH3D", split="training"
+    ):
         super(ETH3D, self).__init__(aug_params, sparse=True)
 
-        image1_list = sorted(
-            glob(osp.join(root, f"two_view_{split}/*/im0.png")))
-        image2_list = sorted(
-            glob(osp.join(root, f"two_view_{split}/*/im1.png")))
-        disp_list = sorted(
-            glob(osp.join(root, "two_view_training_gt/*/disp0GT.pfm"))
-        ) if split == "training" else [
-            osp.join(root, "two_view_training_gt/playground_1l/disp0GT.pfm")
-        ] * len(image1_list)
+        image1_list = sorted(glob(osp.join(root, f"two_view_{split}/*/im0.png")))
+        image2_list = sorted(glob(osp.join(root, f"two_view_{split}/*/im1.png")))
+        disp_list = (
+            sorted(glob(osp.join(root, "two_view_training_gt/*/disp0GT.pfm")))
+            if split == "training"
+            else [osp.join(root, "two_view_training_gt/playground_1l/disp0GT.pfm")]
+            * len(image1_list)
+        )
 
         for img1, img2, disp in zip(image1_list, image2_list, disp_list):
             self.image_list += [[img1, img2]]
@@ -243,18 +241,16 @@ class ETH3D(StereoDataset):
 
 
 class SintelStereo(StereoDataset):
-
     def __init__(self, aug_params=None, root="datasets/SintelStereo"):
-        super().__init__(aug_params,
-                         sparse=True,
-                         reader=frame_utils.readDispSintelStereo)
+        super().__init__(
+            aug_params, sparse=True, reader=frame_utils.readDispSintelStereo
+        )
 
-        image1_list = sorted(
-            glob(osp.join(root, "training/*_left/*/frame_*.png")))
-        image2_list = sorted(
-            glob(osp.join(root, "training/*_right/*/frame_*.png")))
-        disp_list = sorted(
-            glob(osp.join(root, "training/disparities/*/frame_*.png"))) * 2
+        image1_list = sorted(glob(osp.join(root, "training/*_left/*/frame_*.png")))
+        image2_list = sorted(glob(osp.join(root, "training/*_right/*/frame_*.png")))
+        disp_list = (
+            sorted(glob(osp.join(root, "training/disparities/*/frame_*.png"))) * 2
+        )
 
         for img1, img2, disp in zip(image1_list, image2_list, disp_list):
             assert img1.split("/")[-2:] == disp.split("/")[-2:]
@@ -263,7 +259,6 @@ class SintelStereo(StereoDataset):
 
 
 class FallingThings(StereoDataset):
-
     def __init__(self, aug_params=None, root="datasets/FallingThings"):
         super().__init__(aug_params, reader=frame_utils.readDispFallingThings)
         assert os.path.exists(root)
@@ -273,12 +268,10 @@ class FallingThings(StereoDataset):
 
         image1_list = [osp.join(root, e) for e in filenames]
         image2_list = [
-            osp.join(root, e.replace("left.jpg", "right.jpg"))
-            for e in filenames
+            osp.join(root, e.replace("left.jpg", "right.jpg")) for e in filenames
         ]
         disp_list = [
-            osp.join(root, e.replace("left.jpg", "left.depth.png"))
-            for e in filenames
+            osp.join(root, e.replace("left.jpg", "left.depth.png")) for e in filenames
         ]
 
         for img1, img2, disp in zip(image1_list, image2_list, disp_list):
@@ -287,7 +280,6 @@ class FallingThings(StereoDataset):
 
 
 class TartanAir(StereoDataset):
-
     def __init__(self, aug_params=None, root="datasets", keywords=[]):
         super().__init__(aug_params, reader=frame_utils.readDispTartanAir)
         assert os.path.exists(root)
@@ -295,21 +287,24 @@ class TartanAir(StereoDataset):
         with open(os.path.join(root, "tartanair_filenames.txt"), "r") as f:
             filenames = sorted(
                 list(
-                    filter(lambda s: "seasonsforest_winter/Easy" not in s,
-                           f.read().splitlines())))
+                    filter(
+                        lambda s: "seasonsforest_winter/Easy" not in s,
+                        f.read().splitlines(),
+                    )
+                )
+            )
             for kw in keywords:
-                filenames = sorted(
-                    list(filter(lambda s: kw in s.lower(), filenames)))
+                filenames = sorted(list(filter(lambda s: kw in s.lower(), filenames)))
 
         image1_list = [osp.join(root, e) for e in filenames]
-        image2_list = [
-            osp.join(root, e.replace("_left", "_right")) for e in filenames
-        ]
+        image2_list = [osp.join(root, e.replace("_left", "_right")) for e in filenames]
         disp_list = [
             osp.join(
                 root,
-                e.replace("image_left",
-                          "depth_left").replace("left.png", "left_depth.npy"))
+                e.replace("image_left", "depth_left").replace(
+                    "left.png", "left_depth.npy"
+                ),
+            )
             for e in filenames
         ]
 
@@ -319,136 +314,172 @@ class TartanAir(StereoDataset):
 
 
 class KITTI(StereoDataset):
-
-    def __init__(self,
-                 aug_params=None,
-                 root="/home/ec2-user/datasets/KITTI",
-                 image_set="training"):
-        super(KITTI, self).__init__(aug_params,
-                                    sparse=True,
-                                    reader=frame_utils.readDispKITTI)
+    def __init__(
+        self,
+        aug_params=None,
+        root="/home/ec2-user/datasets/KITTI",
+        image_set="training",
+    ):
+        super(KITTI, self).__init__(
+            aug_params, sparse=True, reader=frame_utils.readDispKITTI
+        )
         assert os.path.exists(root)
 
-        image1_list = sorted(
-            glob(os.path.join(root, image_set, "image_2/*_10.png")))
-        image2_list = sorted(
-            glob(os.path.join(root, image_set, "image_3/*_10.png")))
-        disp_list = sorted(
-            glob(os.path.join(
-                root, "training",
-                "disp_occ_0/*_10.png"))) if image_set == "training" else [
-                    osp.join(root, "training/disp_occ_0/000085_10.png")
-                ] * len(image1_list)
+        image1_list = sorted(glob(os.path.join(root, image_set, "image_2/*_10.png")))
+        image2_list = sorted(glob(os.path.join(root, image_set, "image_3/*_10.png")))
+        disp_list = (
+            sorted(glob(os.path.join(root, "training", "disp_occ_0/*_10.png")))
+            if image_set == "training"
+            else [osp.join(root, "training/disp_occ_0/000085_10.png")]
+            * len(image1_list)
+        )
 
-        for idx, (img1, img2,
-                  disp) in enumerate(zip(image1_list, image2_list, disp_list)):
+        for idx, (img1, img2, disp) in enumerate(
+            zip(image1_list, image2_list, disp_list)
+        ):
             self.image_list += [[img1, img2]]
             self.disparity_list += [disp]
 
 
 class Middlebury(StereoDataset):
-
-    def __init__(self,
-                 aug_params=None,
-                 root="/home/ec2-user/datasets/Middlebury",
-                 phase="training",
-                 split="F"):
-        super(Middlebury, self).__init__(aug_params,
-                                         sparse=True,
-                                         reader=frame_utils.readDispMiddlebury)
+    def __init__(
+        self,
+        aug_params=None,
+        root="/home/ec2-user/datasets/Middlebury",
+        phase="training",
+        split="F",
+    ):
+        super(Middlebury, self).__init__(
+            aug_params, sparse=True, reader=frame_utils.readDispMiddlebury
+        )
         assert os.path.exists(root)
         assert split in ["F", "H", "Q", "2014"]
         if split == "2014":  # datasets/Middlebury/2014/Pipes-perfect/im0.png
             scenes = list((Path(root) / "2014").glob("*"))
             for scene in scenes:
                 for s in ["E", "L", ""]:
-                    self.image_list += [[
-                        str(scene / "im0.png"),
-                        str(scene / f"im1{s}.png")
-                    ]]
+                    self.image_list += [
+                        [str(scene / "im0.png"), str(scene / f"im1{s}.png")]
+                    ]
                     self.disparity_list += [str(scene / "disp0.pfm")]
         else:
             lines = list(
-                map(osp.basename,
-                    glob(os.path.join(root, f"MiddEval3/{phase}{split}/*"))))
+                map(
+                    osp.basename,
+                    glob(os.path.join(root, f"MiddEval3/{phase}{split}/*")),
+                )
+            )
             # lines = list(
             #     filter(
             #         lambda p: any(s in p.split("/") for s in Path(
             #             os.path.join(root, "MiddEval3/official_train.txt")).
             #                       read_text().splitlines()), lines))
-            image1_list = sorted([
-                os.path.join(root, "MiddEval3", f"{phase}{split}",
-                             f"{name}/im0.png") for name in lines
-            ])
-            image2_list = sorted([
-                os.path.join(root, "MiddEval3", f"{phase}{split}",
-                             f"{name}/im1.png") for name in lines
-            ])
-            disp_list = sorted([
-                os.path.join(root, "MiddEval3", f"{phase}{split}",
-                             f"{name}/disp0GT.pfm") for name in lines
-            ])
-            assert \
-                len(image1_list) == len(image2_list) == len(disp_list) > 0, [image1_list, phase, split]
+            image1_list = sorted(
+                [
+                    os.path.join(
+                        root, "MiddEval3", f"{phase}{split}", f"{name}/im0.png"
+                    )
+                    for name in lines
+                ]
+            )
+            image2_list = sorted(
+                [
+                    os.path.join(
+                        root, "MiddEval3", f"{phase}{split}", f"{name}/im1.png"
+                    )
+                    for name in lines
+                ]
+            )
+            disp_list = sorted(
+                [
+                    os.path.join(
+                        root, "MiddEval3", f"{phase}{split}", f"{name}/disp0GT.pfm"
+                    )
+                    for name in lines
+                ]
+            )
+            assert len(image1_list) == len(image2_list) == len(disp_list) > 0, [
+                image1_list,
+                phase,
+                split,
+            ]
             for img1, img2, disp in zip(image1_list, image2_list, disp_list):
                 self.image_list += [[img1, img2]]
                 self.disparity_list += [disp]
 
 
 def fetch_dataloader(exp_config):
-    """ Create the data loader for the corresponding trainign set """
+    """Create the data loader for the corresponding trainign set"""
 
     aug_params = {
         "crop_size": exp_config["data"]["image_size"],
         "min_scale": exp_config["data"]["spatial_scale"][0],
         "max_scale": exp_config["data"]["spatial_scale"][1],
         "do_flip": exp_config["data"]["do_flip"],
-        "yjitter": not exp_config["data"]["no_y_jitter"]
+        "yjitter": not exp_config["data"]["no_y_jitter"],
     }
-    if hasattr(exp_config["data"], "saturation_range") \
-        and exp_config["data"]["saturation_range"] is not None:
+    if (
+        hasattr(exp_config["data"], "saturation_range")
+        and exp_config["data"]["saturation_range"] is not None
+    ):
         aug_params["saturation_range"] = exp_config["data"]["saturation_range"]
-    if hasattr(exp_config["data"], "image_gamma") \
-        and exp_config["data"]["image_gamma"] is not None:
+    if (
+        hasattr(exp_config["data"], "image_gamma")
+        and exp_config["data"]["image_gamma"] is not None
+    ):
         aug_params["gamma"] = exp_config["data"]["image_gamma"]
-    if hasattr(exp_config["data"], "do_flip") \
-        and exp_config["data"]["do_flip"] is not None:
+    if (
+        hasattr(exp_config["data"], "do_flip")
+        and exp_config["data"]["do_flip"] is not None
+    ):
         aug_params["do_flip"] = exp_config["data"]["do_flip"]
 
     train_dataset = None
     for dataset_name in exp_config["train"]["datasets"]:
         new_dataset = []
         if dataset_name.startswith("middlebury_"):
-            new_dataset = Middlebury(\
-                aug_params, split=dataset_name.replace("middlebury_", ""))
-        elif dataset_name == "sceneflow":
-            clean_dataset = SceneFlowDatasets(\
-                aug_params, dstype="frames_cleanpass")
-            final_dataset = SceneFlowDatasets(\
-                aug_params, dstype="frames_finalpass")
-            new_dataset = (clean_dataset * 4) + (final_dataset * 4)
-            logging.info(f"Adding {len(new_dataset)} samples from SceneFlow")
+            new_dataset = Middlebury(
+                aug_params, split=dataset_name.replace("middlebury_", "")
+            )
+        elif dataset_name == "sceneflow/things":
+            new_dataset = SceneFlowDatasets(
+                aug_params,
+                root="/home/ec2-user/datasets/SceneFlow",
+                dstype="frames_cleanpass",
+                things_test=False,
+                subsets=["things"],
+            )
+            # final_dataset = SceneFlowDatasets(aug_params, dstype="frames_finalpass")
+            logging.info(f"Adding {len(new_dataset)} samples from SceneFlow/FlyingThings3D")
+        elif dataset_name == "sceneflow/driving":
+            new_dataset = SceneFlowDatasets(
+                aug_params,
+                root="/mnt/data/workspace/dataset/SceneFlow",
+                dstype="frames_cleanpass",
+                things_test=False,
+                subsets=["driving"],
+            )
+            logging.info(f"Adding {len(new_dataset)} samples from SceneFlow/Driving")
         elif "kitti" in dataset_name:
             new_dataset = KITTI(aug_params)
             logging.info(f"Adding {len(new_dataset)} samples from KITTI")
         elif dataset_name == "sintel_stereo":
             new_dataset = SintelStereo(aug_params) * 140
-            logging.info(
-                f"Adding {len(new_dataset)} samples from Sintel Stereo")
+            logging.info(f"Adding {len(new_dataset)} samples from Sintel Stereo")
         elif dataset_name == "falling_things":
             new_dataset = FallingThings(aug_params) * 5
-            logging.info(
-                f"Adding {len(new_dataset)} samples from FallingThings")
+            logging.info(f"Adding {len(new_dataset)} samples from FallingThings")
         elif dataset_name.startswith("tartan_air"):
-            new_dataset = TartanAir(\
-                aug_params, keywords=dataset_name.split("_")[2:])
+            new_dataset = TartanAir(aug_params, keywords=dataset_name.split("_")[2:])
             logging.info(f"Adding {len(new_dataset)} samples from Tartain Air")
         elif dataset_name == "eth3d":
-            new_dataset = ETH3D(aug_params=aug_params,
-                                root="datasets/ETH3D",
-                                split="training")
+            new_dataset = ETH3D(
+                aug_params=aug_params, root="/home/ec2-user/datasets/ETH3D", split="training"
+            )
             logging.info(f"Adding {len(new_dataset)} samples from ETH3D")
-        train_dataset = new_dataset if train_dataset is None else train_dataset + new_dataset
+        train_dataset = (
+            new_dataset if train_dataset is None else train_dataset + new_dataset
+        )
 
     train_loader = data.DataLoader(
         train_dataset,
@@ -456,7 +487,8 @@ def fetch_dataloader(exp_config):
         pin_memory=True,
         shuffle=True,
         num_workers=int(os.environ.get("SLURM_CPUS_PER_TASK", 6)) - 2,
-        drop_last=True)
+        drop_last=True,
+    )
 
     logging.info("Training with %d image pairs" % len(train_dataset))
     return train_loader

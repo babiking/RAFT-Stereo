@@ -12,8 +12,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from core.raft_stereo import RAFTStereo
-
-from evaluate_stereo import *
 import core.stereo_datasets as datasets
 
 try:
@@ -21,7 +19,6 @@ try:
 except:
     # dummy GradScaler for PyTorch < 1.6
     class GradScaler:
-
         def __init__(self):
             pass
 
@@ -48,7 +45,7 @@ gflags.DEFINE_string(
 
 
 def sequence_loss(flow_preds, flow_gt, valid, loss_gamma=0.9, max_flow=700):
-    """ Loss function defined over sequence of flow predictions """
+    """Loss function defined over sequence of flow predictions"""
 
     n_predictions = len(flow_preds)
     assert n_predictions >= 1
@@ -63,18 +60,23 @@ def sequence_loss(flow_preds, flow_gt, valid, loss_gamma=0.9, max_flow=700):
     assert not torch.isinf(flow_gt[valid.bool()]).any()
 
     for i in range(n_predictions):
-        assert not torch.isnan(flow_preds[i]).any() and not torch.isinf(
-            flow_preds[i]).any()
+        assert (
+            not torch.isnan(flow_preds[i]).any()
+            and not torch.isinf(flow_preds[i]).any()
+        )
         # We adjust the loss_gamma so it is consistent for any number of RAFT-Stereo iterations
-        adjusted_loss_gamma = loss_gamma**(15 / (n_predictions - 1))
-        i_weight = adjusted_loss_gamma**(n_predictions - i - 1)
+        adjusted_loss_gamma = loss_gamma ** (15 / (n_predictions - 1))
+        i_weight = adjusted_loss_gamma ** (n_predictions - i - 1)
         i_loss = (flow_preds[i] - flow_gt).abs()
         assert i_loss.shape == valid.shape, [
-            i_loss.shape, valid.shape, flow_gt.shape, flow_preds[i].shape
+            i_loss.shape,
+            valid.shape,
+            flow_gt.shape,
+            flow_preds[i].shape,
         ]
         flow_loss += i_weight * i_loss[valid.bool()].mean()
 
-    epe = torch.sum((flow_preds[-1] - flow_gt)**2, dim=1).sqrt()
+    epe = torch.sum((flow_preds[-1] - flow_gt) ** 2, dim=1).sqrt()
     epe = epe.view(-1)[valid.view(-1)]
 
     metrics = {
@@ -88,11 +90,13 @@ def sequence_loss(flow_preds, flow_gt, valid, loss_gamma=0.9, max_flow=700):
 
 
 def fetch_optimizer(exp_config, model):
-    """ Create the optimizer and learning rate scheduler """
-    optimizer = optim.AdamW(model.parameters(),
-                            lr=exp_config["train"]["learn_rate"],
-                            weight_decay=exp_config["train"]["weight_decay"],
-                            eps=1e-8)
+    """Create the optimizer and learning rate scheduler"""
+    optimizer = optim.AdamW(
+        model.parameters(),
+        lr=exp_config["train"]["learn_rate"],
+        weight_decay=exp_config["train"]["weight_decay"],
+        eps=1e-8,
+    )
 
     scheduler = optim.lr_scheduler.OneCycleLR(
         optimizer,
@@ -100,13 +104,13 @@ def fetch_optimizer(exp_config, model):
         exp_config["train"]["num_of_steps"] + 100,
         pct_start=0.01,
         cycle_momentum=False,
-        anneal_strategy="linear")
+        anneal_strategy="linear",
+    )
 
     return optimizer, scheduler
 
 
 class Logger:
-
     SUM_FREQ = 100
 
     def __init__(self, model, scheduler, log_dir=None):
@@ -116,7 +120,8 @@ class Logger:
         self.running_loss = {}
         self.log_dir = log_dir
         self.writer = SummaryWriter(
-            log_dir="runs" if self.log_dir is None else self.log_dir)
+            log_dir="runs" if self.log_dir is None else self.log_dir
+        )
 
     def _print_training_status(self):
         metrics_data = [
@@ -124,8 +129,8 @@ class Logger:
             for k in sorted(self.running_loss.keys())
         ]
         training_str = "[{:6d}, {:10.7f}] ".format(
-            self.total_steps + 1,
-            self.scheduler.get_last_lr()[0])
+            self.total_steps + 1, self.scheduler.get_last_lr()[0]
+        )
         metrics_str = ("{:10.4f}, " * len(metrics_data)).format(*metrics_data)
 
         # print the training status
@@ -135,11 +140,13 @@ class Logger:
 
         if self.writer is None:
             self.writer = SummaryWriter(
-                log_dir="runs" if self.log_dir is None else self.log_dir)
+                log_dir="runs" if self.log_dir is None else self.log_dir
+            )
 
         for k in self.running_loss:
-            self.writer.add_scalar(k, self.running_loss[k] / Logger.SUM_FREQ,
-                                   self.total_steps)
+            self.writer.add_scalar(
+                k, self.running_loss[k] / Logger.SUM_FREQ, self.total_steps
+            )
             self.running_loss[k] = 0.0
 
     def push(self, metrics):
@@ -158,7 +165,8 @@ class Logger:
     def write_dict(self, results):
         if self.writer is None:
             self.writer = SummaryWriter(
-                log_dir="runs" if self.log_dir is None else self.log_dir)
+                log_dir="runs" if self.log_dir is None else self.log_dir
+            )
 
         for key in results:
             self.writer.add_scalar(key, results[key], self.total_steps)
@@ -167,22 +175,22 @@ class Logger:
         self.writer.close()
 
 
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
 def train(exp_config):
     model = nn.DataParallel(RAFTStereo(**exp_config["model"]))
-    logging.info(
-        f"Model parameter count (pytorch): {count_parameters(model)}.")
+    logging.info(f"Model parameter count (pytorch): {count_parameters(model)}.")
 
     train_loader = datasets.fetch_dataloader(exp_config)
     optimizer, scheduler = fetch_optimizer(exp_config, model)
     total_steps = 0
-    logger = Logger(model,
-                    scheduler,
-                    log_dir=os.path.join(exp_config["path"], "runs"))
+    logger = Logger(model, scheduler, log_dir=os.path.join(exp_config["path"], "runs"))
 
     restore_ckpt = exp_config["train"]["restore_checkpoint"]
     if restore_ckpt is not None and len(restore_ckpt) > 0:
-        assert \
-            restore_ckpt.endswith(".pth") or restore_ckpt.endswith(".pth.gz")
+        assert restore_ckpt.endswith(".pth") or restore_ckpt.endswith(".pth.gz")
         logging.info(f"Model loading checkpoint from {restore_ckpt}...")
         model.load_state_dict(torch.load(restore_ckpt), strict=True)
         logging.info(f"Done loading checkpoint.")
@@ -196,24 +204,21 @@ def train(exp_config):
     should_keep_training = True
     global_batch_num = 0
     while should_keep_training:
-
         for i_batch, (_, *data_blob) in enumerate(tqdm(train_loader)):
             optimizer.zero_grad()
             image1, image2, flow, valid = [x.cuda() for x in data_blob]
 
             assert model.training
             flow_predictions = model(
-                image1,
-                image2,
-                iters=exp_config["train"]["train_num_of_updates"])
+                image1, image2, iters=exp_config["train"]["train_num_of_updates"]
+            )
             assert model.training
 
             loss, metrics = sequence_loss(flow_predictions, flow, valid)
-            logger.writer.add_scalar("live_loss", loss.item(),
-                                     global_batch_num)
-            logger.writer.add_scalar(f"learning_rate",
-                                     optimizer.param_groups[0]["lr"],
-                                     global_batch_num)
+            logger.writer.add_scalar("live_loss", loss.item(), global_batch_num)
+            logger.writer.add_scalar(
+                f"learning_rate", optimizer.param_groups[0]["lr"], global_batch_num
+            )
             global_batch_num += 1
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
@@ -231,12 +236,12 @@ def train(exp_config):
                 should_keep_training = False
                 break
 
-            if total_steps % exp_config["train"][
-                    "save_checkpoint_frequency"] == 0:
+            if total_steps % exp_config["train"]["save_checkpoint_frequency"] == 0:
                 exp_name = exp_config["name"]
                 exp_path = exp_config["path"]
-                save_ckpt_file = os.path.join(\
-                    exp_path, f"checkpoints/{exp_name}-epoch-{total_steps}.pth.gz")
+                save_ckpt_file = os.path.join(
+                    exp_path, f"checkpoints/{exp_name}-epoch-{total_steps}.pth.gz"
+                )
                 os.makedirs(os.path.dirname(save_ckpt_file), exist_ok=True)
                 logging.info(f"Saving file {save_ckpt_file}...")
                 torch.save(model.state_dict(), save_ckpt_file)
@@ -244,7 +249,8 @@ def train(exp_config):
     logging.info("FINISHED TRAINING!")
     logger.close()
     final_ckpt_file = os.path.join(
-        exp_path, f"checkpoints/{exp_name}-epoch-{total_steps}.pth.gz")
+        exp_path, f"checkpoints/{exp_name}-epoch-{total_steps}.pth.gz"
+    )
     torch.save(model.state_dict(), final_ckpt_file)
     return final_ckpt_file
 
@@ -258,8 +264,8 @@ def main():
 
     logging.basicConfig(
         level=logging.INFO,
-        format=
-        "%(asctime)s %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s")
+        format="%(asctime)s %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s",
+    )
 
     exp_config = json.load(open(FLAGS.exp_config_json, "r"))
     train(exp_config)
