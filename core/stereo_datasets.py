@@ -127,7 +127,7 @@ class SceneFlowDatasets(StereoDataset):
 
     def __init__(self,
                  aug_params=None,
-                 root="datasets/SceneFlow",
+                 root="/home/ec2-user/datasets/SceneFlow",
                  dstype="frames_cleanpass",
                  things_test=False):
         super(SceneFlowDatasets, self).__init__(aug_params)
@@ -219,7 +219,7 @@ class ETH3D(StereoDataset):
 
     def __init__(self,
                  aug_params=None,
-                 root="datasets/ETH3D",
+                 root="/home/ec2-user/datasets/ETH3D",
                  split="training"):
         super(ETH3D, self).__init__(aug_params, sparse=True)
 
@@ -318,7 +318,7 @@ class KITTI(StereoDataset):
 
     def __init__(self,
                  aug_params=None,
-                 root="datasets/KITTI",
+                 root="/home/ec2-user/datasets/KITTI",
                  image_set="training"):
         super(KITTI, self).__init__(aug_params,
                                     sparse=True,
@@ -346,7 +346,7 @@ class Middlebury(StereoDataset):
 
     def __init__(self,
                  aug_params=None,
-                 root="datasets/Middlebury",
+                 root="/home/ec2-user/datasets/Middlebury",
                  phase="training",
                  split="F"):
         super(Middlebury, self).__init__(aug_params,

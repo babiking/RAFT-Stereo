@@ -31,7 +31,7 @@ def test_middlebury_Q_dataset():
     aug_params = get_augment_parameters()
 
     dataset = Middlebury(aug_params=aug_params,
-                         root=os.path.join(work_path, "datasets/Middlebury"),
+                         root="/home/ec2-user/datasets/Middlebury",
                          split="Q")
 
     assert len(dataset) == 15, \
@@ -62,7 +62,7 @@ def test_eth3d_dataset():
     aug_params = get_augment_parameters()
 
     dataset = ETH3D(aug_params=aug_params,
-                    root=os.path.join(work_path, "datasets/ETH3D"),
+                    root="/home/ec2-user/datasets/ETH3D",
                     split="training")
 
     assert len(dataset) == 27, \
@@ -76,7 +76,7 @@ def test_eth3d_dataset():
 
         elapsed = float(end - start)
         assert elapsed < 0.8, \
-            f"timeout ({elapsed:.4f} sec) for Middlebury_Q data item iteration!"
+            f"timeout ({elapsed:.4f} sec) for ETH3D data item iteration!"
 
         assert l_img.cpu().detach().numpy().shape == (3, 240, 320)
         assert r_img.cpu().detach().numpy().shape == (3, 240, 320)
@@ -93,7 +93,7 @@ def test_kitti_dataset():
     aug_params = get_augment_parameters()
 
     dataset = KITTI(aug_params=aug_params,
-                    root=os.path.join(work_path, "datasets/KITTI"),
+                    root="/home/ec2-user/datasets/KITTI",
                     image_set="training")
 
     assert len(dataset) == 200, \
@@ -107,7 +107,7 @@ def test_kitti_dataset():
 
         elapsed = float(end - start)
         assert elapsed < 0.8, \
-            f"timeout ({elapsed:.4f} sec) for Middlebury_Q data item iteration!"
+            f"timeout ({elapsed:.4f} sec) for KITTI data item iteration!"
 
         assert l_img.cpu().detach().numpy().shape == (3, 240, 320)
         assert r_img.cpu().detach().numpy().shape == (3, 240, 320)
