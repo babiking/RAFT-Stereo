@@ -15,7 +15,7 @@ gflags.DEFINE_string("exp_config_json", "configure/exp_config.json",
                      "experiment configure json file")
 gflags.DEFINE_string(
     "model_chkpt_file",
-    "models/raftstereo-middlebury.pth",
+    "experiments/BASE_FOLD_1_9/checkpoints/BASE_FOLD_1_9-epoch-100000.pth.gz",
     "model checkpont file")
 
 

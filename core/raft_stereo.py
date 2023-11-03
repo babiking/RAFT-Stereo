@@ -116,7 +116,7 @@ class RAFTStereo(nn.Module):
         mask = torch.softmax(mask, dim=2)
 
         # up_flow: 1 x (2 * 9) x (120 * 160)
-        up_flow = F.unfold(factor * flow, [3, 3], padding=1)
+        up_flow = F.unfold(factor * flow, [1, 9], padding=[0, 4])
         # up_flow: 1 x 2 x 9 x 1 x 1 x 120 x 160
         up_flow = up_flow.view(N, D, 9, 1, 1, H, W)
 

@@ -1,6 +1,6 @@
 {
-    "name": "BASE_SHARE",
-    "path": "/mnt/data/workspace/github/RAFT-Stereo/experiments/BASE_SHARE",
+    "name": "BASE_FOLD_1_9",
+    "path": "/mnt/data/workspace/github/RAFT-Stereo/experiments/BASE_FOLD_1_9",
     "train": {
         "batch_size": 6,
         "restore_checkpoint": "",
@@ -29,15 +29,15 @@
         "corr_implementation": "reg",
         "corr_levels": 4,
         "corr_radius": 4,
-        "shared_backbone": false,
+        "shared_backbone": true,
         "n_downsample": 2,
         "context_norm": "batch",
         "slow_fast_gru": false,
         "n_gru_layers": 3,
         "hidden_dims": [
-            128,
-            128,
-            128
+            64,
+            64,
+            64
         ],
         "mixed_precision": true
     },
