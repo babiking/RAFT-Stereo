@@ -130,7 +130,7 @@ class SceneFlowDatasets(StereoDataset):
     def __init__(
         self,
         aug_params=None,
-        root="/home/ec2-user/datasets/SceneFlow",
+        root="/mnt/data/workspace/datasets/SceneFlow",
         dstype="frames_cleanpass",
         things_test=False,
         subsets=["things", "monkaa", "driving"],
@@ -222,7 +222,7 @@ class SceneFlowDatasets(StereoDataset):
 
 class ETH3D(StereoDataset):
     def __init__(
-        self, aug_params=None, root="/home/ec2-user/datasets/ETH3D", split="training"
+        self, aug_params=None, root="/mnt/data/workspace/datasets/ETH3D", split="training"
     ):
         super(ETH3D, self).__init__(aug_params, sparse=True)
 
@@ -317,7 +317,7 @@ class KITTI(StereoDataset):
     def __init__(
         self,
         aug_params=None,
-        root="/home/ec2-user/datasets/KITTI",
+        root="/mnt/data/workspace/datasets/KITTI",
         image_set="training",
     ):
         super(KITTI, self).__init__(
@@ -345,7 +345,7 @@ class Middlebury(StereoDataset):
     def __init__(
         self,
         aug_params=None,
-        root="/home/ec2-user/datasets/Middlebury",
+        root="/mnt/data/workspace/datasets/Middlebury",
         phase="training",
         split="F",
     ):
@@ -444,7 +444,7 @@ def fetch_dataloader(exp_config):
         elif dataset_name == "sceneflow/things":
             new_dataset = SceneFlowDatasets(
                 aug_params,
-                root="/home/ec2-user/datasets/SceneFlow",
+                root="/mnt/data/workspace/datasets/SceneFlow",
                 dstype="frames_cleanpass",
                 things_test=False,
                 subsets=["things"],
@@ -474,7 +474,7 @@ def fetch_dataloader(exp_config):
             logging.info(f"Adding {len(new_dataset)} samples from Tartain Air")
         elif dataset_name == "eth3d":
             new_dataset = ETH3D(
-                aug_params=aug_params, root="/home/ec2-user/datasets/ETH3D", split="training"
+                aug_params=aug_params, root="/mnt/data/workspace/datasets/ETH3D", split="training"
             )
             logging.info(f"Adding {len(new_dataset)} samples from ETH3D")
         train_dataset = (
