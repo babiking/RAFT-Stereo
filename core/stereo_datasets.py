@@ -454,7 +454,7 @@ def fetch_dataloader(exp_config):
         elif dataset_name == "sceneflow/driving":
             new_dataset = SceneFlowDatasets(
                 aug_params,
-                root="/mnt/data/workspace/dataset/SceneFlow",
+                root="/mnt/data/workspace/datasets/SceneFlow",
                 dstype="frames_cleanpass",
                 things_test=False,
                 subsets=["driving"],
