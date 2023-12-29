@@ -79,11 +79,16 @@ def sequence_loss(flow_preds, flow_gt, valid, loss_gamma=0.9, max_flow=700):
     epe = torch.sum((flow_preds[-1] - flow_gt) ** 2, dim=1).sqrt()
     epe = epe.view(-1)[valid.view(-1)]
 
+    min_disp = torch.min(flow_preds[-1][0])
+    max_disp = torch.max(flow_preds[-1][0])
+
     metrics = {
         "epe": epe.mean().item(),
         "1px": (epe < 1).float().mean().item(),
         "3px": (epe < 3).float().mean().item(),
         "5px": (epe < 5).float().mean().item(),
+        "min": min_disp.float().item(),
+        "max": max_disp.float().item(),
     }
 
     return flow_loss, metrics
@@ -124,14 +129,15 @@ class Logger:
         )
 
     def _print_training_status(self):
-        metrics_data = [
-            self.running_loss[k] / Logger.SUM_FREQ
-            for k in sorted(self.running_loss.keys())
-        ]
         training_str = "[{:6d}, {:10.7f}] ".format(
             self.total_steps + 1, self.scheduler.get_last_lr()[0]
         )
-        metrics_str = ("{:10.4f}, " * len(metrics_data)).format(*metrics_data)
+        metrics_str = ", ".join(
+            [
+                f"{k}:{self.running_loss[k] / Logger.SUM_FREQ:.4f}"
+                for k in self.running_loss.keys()
+            ]
+        )
 
         # print the training status
         logging.info(
