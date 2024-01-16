@@ -94,7 +94,7 @@ class BasicMotionEncoder(nn.Module):
         self.corr_levels = corr_levels
         self.corr_radius = corr_radius
 
-        cor_planes = self.corr_levels * (2 * self.corr_radius + 1) # cor_planes = 36
+        cor_planes = self.corr_levels * (2 * self.corr_radius + 1)  # cor_planes = 36
 
         self.convc1 = nn.Conv2d(cor_planes, 64, 1, padding=0)
         self.convc2 = nn.Conv2d(64, 64, 3, padding=1)
@@ -149,16 +149,18 @@ class BasicMultiUpdateBlock(nn.Module):
         encoder_output_dim = 128
 
         self.gru08 = ConvGRU(
-            hidden_dims[2], # hidden_dim = 128
-            encoder_output_dim + hidden_dims[1] * (self.n_gru_layers > 1), # input_dim = 256
+            hidden_dims[2],  # hidden_dim = 128
+            encoder_output_dim
+            + hidden_dims[1] * (self.n_gru_layers > 1),  # input_dim = 256
         )
         self.gru16 = ConvGRU(
-            hidden_dims[1], # hidden_dim = 128 
-            hidden_dims[0] * (self.n_gru_layers == 3) + hidden_dims[2], # input_dim = 256
+            hidden_dims[1],  # hidden_dim = 128
+            hidden_dims[0] * (self.n_gru_layers == 3)
+            + hidden_dims[2],  # input_dim = 256
         )
         self.gru32 = ConvGRU(
-            hidden_dims[0], # hidden_dim = 128 
-            hidden_dims[1], # input_dim = 128
+            hidden_dims[0],  # hidden_dim = 128
+            hidden_dims[1],  # input_dim = 128
         )
         self.flow_head = FlowHead(hidden_dims[2], hidden_dim=256, output_dim=2)
         factor = 2**self.n_downsample

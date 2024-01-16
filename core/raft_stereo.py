@@ -11,6 +11,7 @@ from core.corr import (
     AlternateCorrBlock,
 )
 from core.utils.utils import coords_grid, upflow8
+from core.sgbm import OpenCVSGBMModule
 
 
 try:
@@ -88,6 +89,8 @@ class RAFTStereo(nn.Module):
                 output_dim=256, norm_fn="instance", downsample=self.n_downsample
             )
 
+        self.sgbm = OpenCVSGBMModule()
+
     def freeze_bn(self):
         for m in self.modules():
             if isinstance(m, nn.BatchNorm2d):
@@ -116,7 +119,7 @@ class RAFTStereo(nn.Module):
         mask = torch.softmax(mask, dim=2)
 
         # up_flow: 1 x (2 * 9) x (120 * 160)
-        up_flow = F.unfold(factor * flow, [1, 9], padding=[0, 4])
+        up_flow = F.unfold(factor * flow, [3, 3], padding=[1, 1])
         # up_flow: 1 x 2 x 9 x 1 x 1 x 120 x 160
         up_flow = up_flow.view(N, D, 9, 1, 1, H, W)
 
@@ -129,6 +132,8 @@ class RAFTStereo(nn.Module):
 
     def forward(self, image1, image2, iters=12, flow_init=None, test_mode=False):
         """Estimate optical flow between pair of frames"""
+        if flow_init is None:
+            flow_init = self.sgbm(image1, image2, downsample=2**self.n_downsample)
 
         # image: 1 x 3 x 480 x 640, format NCHW
         image1 = (2 * (image1 / 255.0) - 1.0).contiguous()
@@ -194,13 +199,12 @@ class RAFTStereo(nn.Module):
         corr_fn = corr_block(
             fmap1, fmap2, radius=self.corr_radius, num_levels=self.corr_levels
         )
-        
+
         # coords0: 1 x 2 x 120 x 160
         # coords1: 1 x 2 x 120 x 160
         coords0, coords1 = self.initialize_flow(net_list[0])
 
-        if flow_init is not None:
-            coords1 = coords1 + flow_init
+        coords1 = coords1 + flow_init
 
         flow_predictions = []
         for itr in range(iters):

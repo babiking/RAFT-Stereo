@@ -1,6 +1,6 @@
 {
-    "name": "BASE_FOLD_1_9",
-    "path": "/mnt/data/workspace/github/RAFT-Stereo/experiments/BASE_FOLD_1_9",
+    "name": "BASE_UNFOLD_3_3_SGBM_6",
+    "path": "/mnt/data/workspace/github/RAFT-Stereo/experiments/BASE_UNFOLD_3_3_SGBM_6",
     "train": {
         "batch_size": 6,
         "restore_checkpoint": "",
@@ -13,9 +13,9 @@
             "kitti"
         ],
         "learn_rate": 0.0002,
-        "num_of_steps": 100000,
-        "train_num_of_updates": 16,
-        "validate_num_of_updates": 32,
+        "num_of_steps": 150000,
+        "train_num_of_updates": 6,
+        "validate_num_of_updates": 6,
         "weight_decay": 0.00001
     },
     "test": {
@@ -23,7 +23,7 @@
             "middlebury_Q",
             "eth3d"
         ],
-        "validate_num_of_updates": 32
+        "validate_num_of_updates": 6
     },
     "model": {
         "corr_implementation": "reg",
