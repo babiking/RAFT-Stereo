@@ -16,7 +16,7 @@ gflags.DEFINE_string(
 )
 gflags.DEFINE_string(
     "model_chkpt_file",
-    "experiments/BASE_FOLD_1_9/checkpoints/BASE_FOLD_1_9-epoch-100000.pth.gz",
+    "experiments/BASE_UNFOLD_3_3_SGBM_ITER_6_100K/checkpoints/BASE_UNFOLD_3_3_SGBM_ITER_6_100K-epoch-100000.pth.gz",
     "model checkpont file",
 )
 

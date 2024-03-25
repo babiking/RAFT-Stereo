@@ -1,6 +1,6 @@
 {
-    "name": "BASE_UNFOLD_3_3_SGBM_6",
-    "path": "/mnt/data/workspace/github/RAFT-Stereo/experiments/BASE_UNFOLD_3_3_SGBM_6",
+    "name": "BASE_UNFOLD_3_3_SGBM_ITER_6_100K",
+    "path": "/mnt/data/workspace/github/RAFT-Stereo/experiments/BASE_UNFOLD_3_3_SGBM_ITER_6_100K",
     "train": {
         "batch_size": 6,
         "restore_checkpoint": "",
@@ -13,7 +13,7 @@
             "kitti"
         ],
         "learn_rate": 0.0002,
-        "num_of_steps": 150000,
+        "num_of_steps": 100000,
         "train_num_of_updates": 6,
         "validate_num_of_updates": 6,
         "weight_decay": 0.00001
@@ -39,7 +39,8 @@
             64,
             64
         ],
-        "mixed_precision": true
+        "mixed_precision": true,
+        "use_sgbm_init": false
     },
     "data": {
         "image_size": [

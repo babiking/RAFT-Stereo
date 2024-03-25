@@ -42,6 +42,7 @@ class RAFTStereo(nn.Module):
         slow_fast_gru=True,
         n_gru_layers=3,
         mixed_precision=True,
+        use_sgbm_init=True,
     ):
         super().__init__()
 
@@ -56,6 +57,7 @@ class RAFTStereo(nn.Module):
         self.slow_fast_gru = slow_fast_gru
         self.n_gru_layers = n_gru_layers
         self.mixed_precision = mixed_precision
+        self.use_sgbm_init = use_sgbm_init
 
         self.cnet = MultiBasicEncoder(
             output_dim=[self.hidden_dims, self.context_dims],
@@ -132,7 +134,7 @@ class RAFTStereo(nn.Module):
 
     def forward(self, image1, image2, iters=12, flow_init=None, test_mode=False):
         """Estimate optical flow between pair of frames"""
-        if flow_init is None:
+        if self.use_sgbm_init and flow_init is None:
             flow_init = self.sgbm(image1, image2, downsample=2**self.n_downsample)
 
         # image: 1 x 3 x 480 x 640, format NCHW
@@ -204,7 +206,8 @@ class RAFTStereo(nn.Module):
         # coords1: 1 x 2 x 120 x 160
         coords0, coords1 = self.initialize_flow(net_list[0])
 
-        coords1 = coords1 + flow_init
+        if flow_init is not None:
+            coords1 = coords1 + flow_init
 
         flow_predictions = []
         for itr in range(iters):
